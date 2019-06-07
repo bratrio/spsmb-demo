@@ -7,9 +7,52 @@ const setCanvasDimensions = () => {
   ctx.canvas.height = window.innerHeight;
 };
 
+var objects = {};
+
 socket.onopen = () => {
-  socket.send("Smrdíš");
-  socket.onmessage = event => console.log("Dostal jsi zprávu od serveru: ", event.data);
+  socket.onmessage = event => {
+    try {
+      const json = JSON.parse(event.data);
+      for (const uuid in json) {
+        const data = json[uuid];
+        
+        if (typeof objects[uuid] === "undefined") {
+          objects[uuid] = new Human(data.x, data.y);
+        } else {
+          const obj = objects[uuid];
+          obj.x = data.x;
+          obj.y = data.y;
+        }
+      }
+    } catch (e) { console.log(e); }
+  };
+
+  let moveX = 0, moveY = 0;
+  window.onkeydown = event => {
+    if (event.key == 'a') moveX = -1;
+    if (event.key == 'd') moveX = 1;
+    if (event.key == 'w') moveY = -1;
+    if (event.key == 's') moveY = 1;
+
+    sendMove(moveX, moveY);
+  };
+
+  window.onkeyup = event => {
+    if (event.key == 'a' && moveX == -1) moveX = 0;
+    if (event.key == 'd' && moveX == 1) moveX = 0;
+    if (event.key == 'w' && moveY == -1) moveY = 0;
+    if (event.key == 's' && moveY == 1) moveY = 0;
+
+    sendMove(moveX, moveY);
+  };
+
+  function sendMove(x, y) {
+    socket.send(JSON.stringify({
+      type: "move",
+      x: x,
+      y: y
+    }));
+  }
 };
 
 setCanvasDimensions();
@@ -26,8 +69,10 @@ function update() {
 }
 
 function render() {
-  ctx.fillStyle = "red";
-  ctx.fillRect(20, 20, 80, 80);
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+  Object.values(objects).forEach(obj => obj.render());
 }
 
 window.requestAnimationFrame(loop);
